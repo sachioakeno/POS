@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS System</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {darkMode: "class", theme: {extend: {colors: {"primary-fixed-dim": "#cfc7a1", "surface-tint": "#645f40", secondary: "#625e50", "on-tertiary-fixed-variant": "#4b4357", "secondary-container": "#e5dfcd", "on-primary-fixed": "#1f1c04", "on-tertiary": "#ffffff", "on-error": "#ffffff", "primary-fixed": "#ebe3bc", "tertiary-fixed": "#eadef7", "on-secondary-container": "#666354", "surface-container-lowest": "#ffffff", "surface-container": "#f2ede8", primary: "#645f40", error: "#ba1a1a", "on-surface-variant": "#49473d", "on-secondary": "#ffffff", "on-primary-fixed-variant": "#4c472a", "inverse-surface": "#32302d", "tertiary-container": "#d5c9e2", surface: "#fdf9f4", "secondary-fixed-dim": "#ccc6b4", "surface-dim": "#ded9d5", "on-secondary-fixed": "#1e1c10", tertiary: "#635b70", "on-primary-container": "#5d5839", "on-primary": "#ffffff", "surface-variant": "#e6e2dd", "primary-container": "#d6cea8", outline: "#7a776c", "surface-bright": "#fdf9f4", "tertiary-fixed-dim": "#cec2db", "on-error-container": "#93000a", "inverse-on-surface": "#f5f0eb", "error-container": "#ffdad6", "on-tertiary-container": "#5c5368", "on-secondary-fixed-variant": "#4a4739", "surface-container-high": "#ece7e3", "on-tertiary-fixed": "#1f182a", background: "#fdf9f4", "on-surface": "#1c1b19", "inverse-primary": "#cfc7a1", "on-background": "#1c1b19", "surface-container-low": "#f7f3ee", "secondary-fixed": "#e8e2d0", "outline-variant": "#cbc6b9", "surface-container-highest": "#e6e2dd"}, borderRadius: {DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"}, fontFamily: {headline: ["Inter"], display: ["Inter"], body: ["Inter"], label: ["Inter"]}}}};
+  </script>
+</head>
+  <body>
+    <div id="root"></div>
+    {/* LOGO AREA */}
+        <div className="flex items-center gap-3 mb-8">
+          {storeLogo ? (
+            <img src={storeLogo} alt="Logo" className="h-8 w-8 rounded-full object-cover border border-outline-variant/30" />
+          ) : (
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white font-bold">
+              {storeName.charAt(0)}
+            </div>
+          )}
+          <h1 className="font-bold text-xl text-primary truncate max-w-[150px]">{storeName}</h1>
+        </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
