@@ -2,71 +2,64 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\Setting;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // 1. Mendaftarkan Toko Baru
+    // Fungsi untuk Mendaftar (Register)
     public function register(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|unique:users',
-            'password' => 'required|string|min:6'
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6',
         ]);
 
+        // Buat user baru, default role untuk pendaftar pertama adalah 'admin'
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'admin' // Otomatis menjadi admin untuk tokonya sendiri
+            'role' => 'admin',
         ]);
 
-        // Otomatis buatkan profil/setting kosong khusus untuk user ini
-        Setting::create([
-            'user_id' => $user->id,
-            'store_name' => 'Toko ' . $user->name,
-            'tax_percentage' => 0
-        ]);
-
-        // Buat KTP (Token)
+        // Langsung buatkan token agar user otomatis login setelah mendaftar
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Registrasi berhasil',
             'access_token' => $token,
-            'user' => $user
+            'user' => $user,
         ], 201);
     }
 
-    // 2. Login Toko
+    // Fungsi untuk Masuk (Login)
     public function login(Request $request)
     {
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json(['message' => 'Email atau Password salah!'], 401);
+        $request->validate([
+            'email' => 'required|string|email',
+            'password' => 'required|string',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Kredensial tidak valid'], 401);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Login berhasil',
             'access_token' => $token,
-            'user' => $user
+            'user' => $user,
         ]);
     }
 
-    // 3. Cek Data User Saat Ini (Dari Token)
-    public function me(Request $request)
-    {
-        return response()->json($request->user());
-    }
-
-    // 4. Logout (Hapus Token)
+    // Fungsi untuk Keluar (Logout)
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

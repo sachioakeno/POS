@@ -16,17 +16,7 @@
 </head>
   <body>
     <div id="root"></div>
-    {/* LOGO AREA */}
-        <div className="flex items-center gap-3 mb-8">
-          {storeLogo ? (
-            <img src={storeLogo} alt="Logo" className="h-8 w-8 rounded-full object-cover border border-outline-variant/30" />
-          ) : (
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white font-bold">
-              {storeName.charAt(0)}
-            </div>
-          )}
-          <h1 className="font-bold text-xl text-primary truncate max-w-[150px]">{storeName}</h1>
-        </div>
+    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "../utils/api";
 
 export default function POS() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -12,23 +13,26 @@ export default function POS() {
   const [storeSettings, setStoreSettings] = useState({ store_name: "Toko", tax_percentage: 0 });
   const [menuItems, setMenuItems] = useState([]);
   const storeName = localStorage.getItem("storeName") || "Toko";
-
+  
   // Mobile: toggle between catalog and cart views
   const [mobileView, setMobileView] = useState("catalog");
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/menus")
+    // 1. Fetch Menus menggunakan apiFetch (jauh lebih bersih)
+    apiFetch("/menus")
       .then(res => res.json())
       .then(data => setMenuItems(data.map(item => ({ ...item, price: Number(item.price) }))))
       .catch(err => console.error("Gagal mengambil data menu: ", err));
 
-    fetch("http://localhost:8000/api/settings")
+    // 2. Fetch Settings menggunakan apiFetch
+    apiFetch("/settings")
       .then(res => res.json())
       .then(data => setStoreSettings(data))
       .catch(err => console.error("Gagal mengambil setting: ", err));
   }, []);
 
   const categories = ["All", ...new Set(menuItems.map(item => item.category))];
+
   const filteredMenus = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
@@ -38,8 +42,10 @@ export default function POS() {
   const addToCart = (item) => {
     setCart(prev => {
       const existing = prev.find(x => x.menu_id === item.id || x.menu_id === item.menu_id);
-      if (existing) return prev.map(x => x.menu_id === (item.id || item.menu_id) ? { ...x, quantity: x.quantity + 1 } : x);
-      return [...prev, { menu_id: item.id, name: item.name, price: item.price, img: item.img, quantity: 1 }];
+      if (existing) {
+        return prev.map(x => x.menu_id === (item.id || item.menu_id) ? { ...x, quantity: x.quantity + 1 } : x);
+      }
+      return [...prev, { menu_id: item.id || item.menu_id, name: item.name, price: item.price, img: item.img || item.image, quantity: 1 }];
     });
   };
 
@@ -60,18 +66,22 @@ export default function POS() {
   const handleCheckout = async () => {
     if (cart.length === 0) return alert("Keranjang masih kosong!");
     setIsLoading(true);
+    
     try {
       const payload = {
         total_price: total,
         payment_method: paymentMethod,
         items: cart.map(item => ({ menu_id: item.menu_id, quantity: item.quantity, price: item.price })),
       };
-      const response = await fetch("http://localhost:8000/api/checkout", {
+
+      // 3. Post Checkout menggunakan apiFetch
+      const response = await apiFetch("/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify(payload),
       });
+
       if (!response.ok) throw new Error("Terjadi kesalahan server.");
+      
       setLastTransactionTotal(total);
       setShowSuccessModal(true);
       setCart([]);
@@ -85,10 +95,7 @@ export default function POS() {
 
   return (
     <div className="bg-surface-container-lowest text-on-surface font-body antialiased min-h-screen flex flex-col">
-
-      {/* ── Page Header ──────────────────────────────────────────────────
-          sticky top-14 on mobile = sits directly below App's mobile top bar
-          sticky top-0 on desktop = sits at the top of the content area     */}
+      {/* Page Header */}
       <header className="sticky top-14 lg:top-0 z-20 bg-surface/90 backdrop-blur-md border-b border-outline-variant/20 flex items-center justify-between h-14 px-4 lg:px-6 flex-shrink-0">
         <div className="flex items-center bg-surface-container-low rounded-full px-3 py-1.5 border border-outline-variant/30 flex-1 max-w-xs focus-within:border-primary transition-all">
           <span className="material-symbols-outlined text-outline mr-2 text-[18px]">search</span>
@@ -108,23 +115,19 @@ export default function POS() {
         </div>
       </header>
 
-      {/* ── Mobile Tab Bar ── hidden on lg+ ──────────────────────────── */}
+      {/* Mobile Tab Bar */}
       <div className="lg:hidden flex flex-shrink-0 bg-surface border-b border-outline-variant/20 sticky top-28 z-10">
         {[
-          { id: "catalog", label: "Menu",  icon: "restaurant_menu" },
-          { id: "cart",    label: "Cart",  icon: "shopping_cart" },
+          { id: "catalog", label: "Menu", icon: "restaurant_menu" },
+          { id: "cart", label: "Cart", icon: "shopping_cart" }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setMobileView(tab.id)}
-            className={`relative flex-1 py-2.5 flex items-center justify-center gap-1.5 text-xs font-bold transition-colors
-              ${mobileView === tab.id
-                ? "text-primary border-b-2 border-primary bg-primary/5"
-                : "text-on-surface-variant"}`}
+            className={`relative flex-1 py-2.5 flex items-center justify-center gap-1.5 text-xs font-bold transition-colors ${mobileView === tab.id ? "text-primary border-b-2 border-primary bg-primary/5" : "text-on-surface-variant"}`}
           >
             <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
             {tab.label}
-            {/* Cart badge */}
             {tab.id === "cart" && cartItemCount > 0 && (
               <span className="absolute top-1.5 right-[calc(50%-28px)] h-[18px] min-w-[18px] px-1 bg-error rounded-full text-white text-[9px] font-bold flex items-center justify-center">
                 {cartItemCount}
@@ -134,10 +137,10 @@ export default function POS() {
         ))}
       </div>
 
-      {/* ── Main Content ─────────────────────────────────────────────── */}
+      {/* Main Content */}
       <main className="flex-1 flex flex-col lg:flex-row lg:gap-5 lg:p-5 lg:overflow-hidden lg:h-[calc(100vh-3.5rem)]">
-
-        {/* ── Catalog Section ── */}
+        
+        {/* Catalog Section */}
         <section className={`${mobileView === "cart" ? "hidden" : "flex"} lg:flex flex-col flex-grow min-w-0 p-4 lg:p-0 lg:overflow-hidden`}>
           {/* Category filter row */}
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -149,10 +152,7 @@ export default function POS() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium shadow-sm transition-colors whitespace-nowrap flex-shrink-0
-                    ${selectedCategory === cat
-                      ? "bg-primary-container text-on-primary-container"
-                      : "bg-surface-container text-on-surface hover:bg-surface-container-highest"}`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium shadow-sm transition-colors whitespace-nowrap flex-shrink-0 ${selectedCategory === cat ? "bg-primary-container text-on-primary-container" : "bg-surface-container text-on-surface hover:bg-surface-container-highest"}`}
                 >
                   {cat}
                 </button>
@@ -202,16 +202,8 @@ export default function POS() {
           </div>
         </section>
 
-        {/* ── Cart Section ─────────────────────────────────────────────
-            mobile: full width, shown only when mobileView === "cart"
-            desktop: fixed 320px sidebar, always shown                  */}
-        <section className={`
-          ${mobileView === "catalog" ? "hidden" : "flex"} lg:flex
-          flex-col w-full lg:w-[320px] lg:flex-shrink-0
-          bg-surface-container-lowest
-          border-t lg:border border-outline-variant/30
-          lg:rounded-2xl lg:shadow-sm lg:overflow-hidden
-        `}>
+        {/* Cart Section */}
+        <section className={`${mobileView === "catalog" ? "hidden" : "flex"} flex-col w-full lg:w-[320px] lg:flex-shrink-0 bg-surface-container-lowest border-t lg:border border-outline-variant/30 lg:rounded-2xl lg:shadow-sm lg:overflow-hidden`}>
           {/* Cart header */}
           <div className="p-4 border-b border-outline-variant/20 bg-surface-bright flex justify-between items-center flex-shrink-0">
             <h2 className="font-headline text-base font-bold text-on-surface">Current Order</h2>
@@ -269,23 +261,20 @@ export default function POS() {
               <span className="font-medium">Rp {subtotal.toLocaleString("id-ID")}</span>
             </div>
             <div className="flex justify-between text-xs text-on-surface-variant mb-3 pb-3 border-b border-outline-variant/20">
-              <span>Tax {taxRate * 100}%</span>
+              <span>Tax {storeSettings.tax_percentage}%</span>
               <span className="font-medium">Rp {tax.toLocaleString("id-ID")}</span>
             </div>
             <div className="flex justify-between items-end mb-4">
               <span className="text-sm font-bold text-on-surface">Total</span>
               <span className="font-headline text-lg font-bold text-primary">Rp {total.toLocaleString("id-ID")}</span>
             </div>
-
+            
             <div className="grid grid-cols-3 gap-2 mb-4">
               {["Cash", "QRIS", "Card"].map(method => (
                 <button
                   key={method}
                   onClick={() => setPaymentMethod(method)}
-                  className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors
-                    ${paymentMethod === method
-                      ? "border-2 border-primary bg-primary-container/10 text-primary font-bold"
-                      : "border border-outline-variant/30 bg-surface text-on-surface-variant hover:border-primary"}`}
+                  className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${paymentMethod === method ? "border-2 border-primary bg-primary-container/10 text-primary font-bold" : "border border-outline-variant/30 bg-surface text-on-surface-variant hover:border-primary"}`}
                 >
                   <span className="material-symbols-outlined text-[18px]">
                     {method === "Cash" ? "payments" : method === "QRIS" ? "qr_code_scanner" : "credit_card"}
@@ -298,10 +287,7 @@ export default function POS() {
             <button
               onClick={handleCheckout}
               disabled={isLoading || cart.length === 0}
-              className={`w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-1.5 transition-all
-                ${cart.length === 0
-                  ? "bg-surface-variant text-outline cursor-not-allowed"
-                  : "bg-primary text-on-primary hover:opacity-90 shadow-sm active:scale-95"}`}
+              className={`w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${cart.length === 0 ? "bg-surface-variant text-outline cursor-not-allowed" : "bg-primary text-on-primary hover:opacity-90 shadow-sm active:scale-95"}`}
             >
               {isLoading ? "Memproses..." : `Charge Rp ${total.toLocaleString("id-ID")}`}
               {!isLoading && <span className="material-symbols-outlined text-[18px]">arrow_forward</span>}
@@ -310,7 +296,7 @@ export default function POS() {
         </section>
       </main>
 
-      {/* ── Success Modal ── */}
+      {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <div className="bg-white p-8 rounded-3xl w-full max-w-[320px] shadow-2xl flex flex-col items-center text-center animate-fade-in">

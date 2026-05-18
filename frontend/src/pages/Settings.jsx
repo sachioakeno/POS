@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "../utils/api"; // Pastikan path ini sesuai dengan lokasi folder utils kamu
 
 export default function Settings() {
   const [formData, setFormData] = useState({ store_name: "", tax_percentage: 0, logo_url: "" });
-  const [logoFile, setLogoFile] = useState(null); // State khusus untuk file gambar
+  const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/settings")
+    // Menggunakan apiFetch, tidak perlu tulis full URL dan Token lagi
+    apiFetch("/settings")
       .then(res => res.json())
       .then(data => {
         setFormData(data);
@@ -21,7 +23,7 @@ export default function Settings() {
     const file = e.target.files[0];
     if (file) {
       setLogoFile(file);
-      setLogoPreview(URL.createObjectURL(file)); // Tampilkan preview sebelum upload
+      setLogoPreview(URL.createObjectURL(file));
     }
   };
 
@@ -30,15 +32,15 @@ export default function Settings() {
     setIsLoading(true);
     setMessage({ text: "", type: "" });
 
-    // Gunakan FormData untuk mengirim file + text (tidak bisa pakai JSON)
     const dataToSend = new FormData();
     dataToSend.append("store_name", formData.store_name);
     dataToSend.append("tax_percentage", formData.tax_percentage);
     if (logoFile) dataToSend.append("logo", logoFile);
 
     try {
-      const response = await fetch("http://localhost:8000/api/settings", {
-        method: "POST", // Menggunakan POST karena Form-Data berisi File
+      // Menggunakan apiFetch untuk FormData
+      const response = await apiFetch("/settings", {
+        method: "POST",
         body: dataToSend
       });
       
@@ -46,7 +48,6 @@ export default function Settings() {
         const result = await response.json();
         setMessage({ text: "Pengaturan berhasil disimpan!", type: "success" });
         
-        // Simpan nama & logo baru ke memory dan pancarkan event
         localStorage.setItem("storeName", formData.store_name);
         if (result.data.logo_url) localStorage.setItem("storeLogo", result.data.logo_url);
         window.dispatchEvent(new Event("storeProfileUpdated"));

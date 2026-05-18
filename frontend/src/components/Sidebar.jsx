@@ -6,8 +6,20 @@ export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-  const [storeName, setStoreName] = useState("Toko");
-  const [storeLogo, setStoreLogo] = useState("null");
+  const [storeName, setStoreName] = useState(localStorage.getItem("storeName") || "Toko");
+  const [storeLogo, setStoreLogo] = useState(localStorage.getItem("storeLogo"));
+
+
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      setStoreName(localStorage.getItem("storeName") || "Toko");
+      setStoreLogo(localStorage.getItem("storeLogo"));
+    };
+
+    window.addEventListener("storeProfileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("storeProfileUpdated", handleProfileUpdate);
+  }, []);
+
 
   // Close drawer whenever the route changes (user tapped a link on mobile)
   useEffect(() => {
@@ -18,17 +30,21 @@ export default function Sidebar({ isOpen, onClose }) {
     const fetchProfile = () => {
       const savedName = localStorage.getItem("storeName");
       const savedLogo = localStorage.getItem("storeLogo");
-      
+
       if (savedName) setStoreName(savedName);
       if (savedLogo) setStoreLogo(savedLogo);
 
-      fetch("http://localhost:8000/api/settings")
+      fetch("http://localhost:8000/api/settings", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
         .then((res) => res.json())
         .then((data) => {
           if (data.store_name) {
             setStoreName(data.store_name);
             localStorage.setItem("storeName", data.store_name);
-            document.title = `${data.store_name} - POS`; 
+            document.title = `${data.store_name} - POS`;
           }
           if (data.logo_url) {
             setStoreLogo(data.logo_url);
@@ -60,9 +76,11 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   const menuItems = [
+
     { path: "/", name: "POS Cashier", icon: "point_of_sale", roles: ["admin", "cashier"] },
     { path: "/inventory", name: "Inventory", icon: "inventory_2", roles: ["admin"] },
     { path: "/dashboard", name: "Smart Dashboard", icon: "monitoring", roles: ["admin"] },
+    { path: "/users", name: "User Management", icon: "manage_accounts", roles: ["admin"] },
     { path: "/settings", name: "Store Settings", icon: "settings", roles: ["admin"] },
   ];
 
@@ -110,12 +128,29 @@ export default function Sidebar({ isOpen, onClose }) {
           <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
         </button>
 
-        {/* ── Brand ── */}
-        <div className="flex items-center gap-2 px-3 mb-8">
-          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="material-symbols-outlined text-on-primary text-sm">storefront</span>
-          </div>
-          <h1 className="font-bold text-xl text-primary truncate max-w-[150px]">{storeName}</h1>
+        {/* BAGIAN HEADER SIDEBAR / LOGO */}
+        <div className="flex items-center gap-3 px-6 py-6 mb-2">
+          
+          {/* Logika Gambar Dinamis */}
+          {storeLogo ? (
+            <img 
+              src={storeLogo} 
+              alt="Store Logo" 
+              className="h-8 w-8 rounded-xl object-cover flex-shrink-0 shadow-sm border border-outline-variant/30" 
+            />
+          ) : (
+            <div className="h-8 w-8 bg-primary rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+              <span className="material-symbols-outlined text-on-primary" style={{ fontSize: 18 }}>
+                storefront
+              </span>
+            </div>
+          )}
+
+          {/* Nama Toko */}
+          <span className="font-display text-[16px] font-bold text-primary tracking-tight truncate">
+            {storeName}
+          </span>
+          
         </div>
 
         {/* ── Nav links ── */}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "../utils/api";
 
 export default function Inventory() {
   const [activeTab, setActiveTab] = useState("menu");
@@ -11,7 +12,7 @@ export default function Inventory() {
   const [showIngModal, setShowIngModal] = useState(false);
   const [showRestockModal, setShowRestockModal] = useState(false);
 
-  // POIN 1: State untuk Custom Delete Modal
+  // State untuk Custom Delete Modal
   const [confirmDelete, setConfirmDelete] = useState({ show: false, id: null, type: "", title: "", message: "" });
 
   // States Form
@@ -21,25 +22,32 @@ export default function Inventory() {
   const [ingFormData, setIngFormData] = useState({ id: "", name: "", unit: "gram", current_stock: 0 });
   const [addedStock, setAddedStock] = useState("");
 
-  // POIN 2: State untuk Search
+  // State untuk Search & Pagination
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 10;
-
+  
   const storeName = localStorage.getItem("storeName") || "Toko";
 
   const fetchData = async () => {
-    const [m, i, o] = await Promise.all([
-      fetch("http://localhost:8000/api/menus").then(res => res.json()),
-      fetch("http://localhost:8000/api/ingredients").then(res => res.json()),
-      fetch("http://localhost:8000/api/orders").then(res => res.json())
-    ]);
-    setMenus(m); setIngredients(i); setOrders(o);
+    try {
+      const [m, i, o] = await Promise.all([
+        apiFetch("/menus").then(res => res.json()),
+        apiFetch("/ingredients").then(res => res.json()),
+        apiFetch("/orders").then(res => res.json())
+      ]);
+      setMenus(m); 
+      setIngredients(i); 
+      setOrders(o);
+    } catch (error) {
+      console.error("Gagal mengambil data:", error);
+    }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+  }, []);
 
-  // Reset pencarian dan halaman setiap kali pindah tab
   useEffect(() => {
     setSearchQuery("");
     setCurrentPage(1);
@@ -47,12 +55,12 @@ export default function Inventory() {
 
   const existingCategories = [...new Set(menus.map(item => item.category))];
 
-  // --- LOGIKA FILTER PENCARIAN (POIN 2) ---
+  // --- LOGIKA FILTER PENCARIAN ---
   const filteredMenus = menus.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.category.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredIngredients = ingredients.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredOrdersForPagination = orders.filter(o => o.id.toString().includes(searchQuery) || (o.payment_method || "").toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // --- LOGIKA CUSTOM DELETE (POIN 1) ---
+  // --- LOGIKA CUSTOM DELETE ---
   const requestDelete = (id, type, name) => {
     let title, message;
     if (type === "menu") {
@@ -67,9 +75,13 @@ export default function Inventory() {
 
   const executeDelete = async () => {
     const { id, type } = confirmDelete;
-    if (type === "menu") await fetch(`http://localhost:8000/api/menus/${id}`, { method: "DELETE" });
-    else if (type === "ingredient") await fetch(`http://localhost:8000/api/ingredients/${id}`, { method: "DELETE" });
-    else if (type === "order") await fetch(`http://localhost:8000/api/orders/${id}/void`, { method: "DELETE" });
+    try {
+      if (type === "menu") await apiFetch(`/menus/${id}`, { method: "DELETE" });
+      else if (type === "ingredient") await apiFetch(`/ingredients/${id}`, { method: "DELETE" });
+      else if (type === "order") await apiFetch(`/orders/${id}/void`, { method: "DELETE" });
+    } catch (error) {
+      console.error("Gagal menghapus:", error);
+    }
 
     setConfirmDelete({ show: false, id: null, type: "", title: "", message: "" });
     fetchData();
@@ -78,42 +90,54 @@ export default function Inventory() {
   // --- LOGIKA FORM SUBMIT ---
   const handleMenuSubmit = async (e) => {
     e.preventDefault();
-    const url = isEditing ? `http://localhost:8000/api/menus/${menuFormData.id}` : "http://localhost:8000/api/menus";
-    await fetch(url, { method: isEditing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(menuFormData) });
-    setShowMenuModal(false); fetchData();
+    const url = isEditing ? `/menus/${menuFormData.id}` : "/menus";
+    await apiFetch(url, { 
+      method: isEditing ? "PUT" : "POST", 
+      body: JSON.stringify(menuFormData) 
+    });
+    setShowMenuModal(false); 
+    fetchData();
   };
 
   const handleIngSubmit = async (e) => {
     e.preventDefault();
-    const url = isEditing ? `http://localhost:8000/api/ingredients/${ingFormData.id}` : "http://localhost:8000/api/ingredients";
-    await fetch(url, { method: isEditing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ingFormData) });
-    setShowIngModal(false); fetchData();
+    const url = isEditing ? `/ingredients/${ingFormData.id}` : "/ingredients";
+    await apiFetch(url, { 
+      method: isEditing ? "PUT" : "POST", 
+      body: JSON.stringify(ingFormData) 
+    });
+    setShowIngModal(false); 
+    fetchData();
   };
 
   const handleRestockSubmit = async (e) => {
     e.preventDefault();
-    await fetch(`http://localhost:8000/api/ingredients/${selectedItem.id}/restock`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ added_stock: addedStock })
+    await apiFetch(`/ingredients/${selectedItem.id}/restock`, {
+      method: "POST", 
+      body: JSON.stringify({ added_stock: addedStock })
     });
-    setShowRestockModal(false); setAddedStock(""); fetchData();
+    setShowRestockModal(false); 
+    setAddedStock(""); 
+    fetchData();
   };
 
-  // Fitur Download CSV
   const downloadCSV = () => {
     const headers = "ID Struk,Waktu Transaksi,Total Pembayaran,Metode Pembayaran\n";
     const csvData = orders.map(order => {
       const time = new Date(order.created_at).toLocaleString('id-ID').replace(/,/g, '');
       return `#ORD-${order.id},${time},${order.total_price},${order.payment_method}`;
     }).join("\n");
+    
     const blob = new Blob([headers + csvData], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
     link.setAttribute("download", `Laporan_Transaksi_${storeName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    document.body.appendChild(link); 
+    link.click(); 
+    document.body.removeChild(link);
   };
 
-  // Perhitungan Pagination Transaksi
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
   const currentOrders = filteredOrdersForPagination.slice(indexOfFirstOrder, indexOfLastOrder);
@@ -130,10 +154,11 @@ export default function Inventory() {
   ];
 
   return (
-    <div className="bg-surface-container-lowest min-h-screen font-body text-on-surface flex w-full">
+    // Menggunakan flex-col agar susunan header dan main mengalir ke bawah dengan rapi
+    <div className="bg-surface-container-lowest min-h-screen font-body text-on-surface flex flex-col w-full">
 
-      {/* Top Header - Mobile Responsive */}
-      <header className="fixed top-0 right-0 left-0 md:left-56 z-20 bg-surface/80 backdrop-blur-md shadow-sm flex items-center justify-between h-14 pl-14 pr-4 md:px-6">
+      {/* FIXED POSITIONS REMOVED: Sekarang menggunakan sticky top-14 (Mobile bawah topbar) dan lg:top-0 (Desktop pas di atas) */}
+      <header className="sticky top-14 lg:top-0 z-20 bg-surface/80 backdrop-blur-md shadow-sm flex items-center justify-between h-14 px-4 md:px-6 flex-shrink-0">
         <div className="flex items-center bg-surface-container-low rounded-full px-3 py-1.5 border border-outline-variant/30 w-full max-w-[200px] md:max-w-[288px] focus-within:border-primary transition-all">
           <span className="material-symbols-outlined text-outline mr-2 text-[18px]">search</span>
           <input
@@ -156,8 +181,8 @@ export default function Inventory() {
         </div>
       </header>
 
-      {/* Main - Mobile Responsive */}
-      <main className="ml-0 md:ml-56 mt-14 flex-grow p-4 md:p-6 max-w-full w-full">
+      {/* DOUBLE MARGIN REMOVED: ml-0 md:ml-56 dihapus karena sudah di-handle secara global oleh App.jsx */}
+      <main className="flex-grow p-4 md:p-6 max-w-full w-full">
         <div className="max-w-5xl mx-auto">
 
           {/* Page Title & Stats */}
@@ -185,7 +210,7 @@ export default function Inventory() {
             </div>
           </div>
 
-          {/* Tabs + Action Button - Mobile Responsive */}
+          {/* Tabs + Action Button */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-3">
             <div className="flex bg-surface-container-low p-1 rounded-xl gap-1 overflow-x-auto w-full md:w-auto" style={{ scrollbarWidth: 'none' }}>
               {tabs.map(tab => (
@@ -198,12 +223,12 @@ export default function Inventory() {
             </div>
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0" style={{ scrollbarWidth: 'none' }}>
               {activeTab === 'menu' && (
-                <button onClick={() => { setMenuFormData({ id: "", name: "", category: "", price: "", hpp: "", image: "" }); setIsEditing(false); setShowMenuModal(true); }} className="bg-primary text-on-primary px-3 md:px-4 py-2 rounded-lg font-bold text-[11px] md:text-xs flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap whitespace-nowrap">
+                <button onClick={() => { setMenuFormData({ id: "", name: "", category: "", price: "", hpp: "", image: "" }); setIsEditing(false); setShowMenuModal(true); }} className="bg-primary text-on-primary px-3 md:px-4 py-2 rounded-lg font-bold text-[11px] md:text-xs flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap">
                   <span className="material-symbols-outlined text-[14px] md:text-[15px]">add</span> Tambah Menu
                 </button>
               )}
               {activeTab === 'ingredients' && (
-                <button onClick={() => { setIngFormData({ id: "", name: "", unit: "gram", current_stock: 0 }); setIsEditing(false); setShowIngModal(true); }} className="bg-primary text-on-primary px-3 md:px-4 py-2 rounded-lg font-bold text-[11px] md:text-xs flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap whitespace-nowrap">
+                <button onClick={() => { setIngFormData({ id: "", name: "", unit: "gram", current_stock: 0 }); setIsEditing(false); setShowIngModal(true); }} className="bg-primary text-on-primary px-3 md:px-4 py-2 rounded-lg font-bold text-[11px] md:text-xs flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap">
                   <span className="material-symbols-outlined text-[14px] md:text-[15px]">add</span> Tambah Bahan
                 </button>
               )}
@@ -215,7 +240,7 @@ export default function Inventory() {
             </div>
           </div>
 
-          {/* ── MENU TABLE ── */}
+          {/* ── TABLES SECTION ── */}
           {activeTab === 'menu' && (
             <div className="bg-white rounded-xl border border-outline-variant/30 shadow-sm w-full">
               <div className="overflow-x-auto">
@@ -257,7 +282,6 @@ export default function Inventory() {
             </div>
           )}
 
-          {/* ── INGREDIENTS TABLE ── */}
           {activeTab === 'ingredients' && (
             <div className="bg-white rounded-xl border border-outline-variant/30 shadow-sm w-full">
               <div className="overflow-x-auto">
@@ -296,7 +320,6 @@ export default function Inventory() {
             </div>
           )}
 
-          {/* ── ORDERS TABLE DENGAN PAGINATION ── */}
           {activeTab === 'orders' && (
             <div className="bg-white rounded-xl border border-outline-variant/30 shadow-sm w-full flex flex-col">
               <div className="overflow-x-auto">
@@ -347,7 +370,7 @@ export default function Inventory() {
         </div>
       </main>
 
-      {/* ── MODAL CUSTOM DELETE (POIN 1) ── */}
+      {/* ── MODAL CUSTOM DELETE ── */}
       {confirmDelete.show && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
           <div className="bg-white p-5 md:p-6 rounded-2xl w-[90%] max-w-sm shadow-2xl border border-error/20">
@@ -357,27 +380,16 @@ export default function Inventory() {
               </div>
               <h3 className="text-base md:text-lg font-bold font-headline text-on-surface mb-2">{confirmDelete.title}</h3>
               <p className="text-xs md:text-sm text-on-surface-variant mb-5 md:mb-6">{confirmDelete.message}</p>
-
               <div className="flex gap-2 md:gap-3 w-full">
-                <button
-                  onClick={() => setConfirmDelete({ show: false, id: null, type: "", title: "", message: "" })}
-                  className="flex-1 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-on-surface-variant bg-surface-container hover:bg-surface-container-highest transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={executeDelete}
-                  className="flex-1 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-white bg-error hover:bg-error/90 shadow-md transition-all active:scale-95"
-                >
-                  Ya, Hapus
-                </button>
+                <button onClick={() => setConfirmDelete({ show: false, id: null, type: "", title: "", message: "" })} className="flex-1 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-on-surface-variant bg-surface-container hover:bg-surface-container-highest transition-colors">Batal</button>
+                <button onClick={executeDelete} className="flex-1 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold text-white bg-error hover:bg-error/90 shadow-md transition-all active:scale-95">Ya, Hapus</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── MODALS (FORM MENU & BAHAN BAKU) ── */}
+      {/* ── RESTOCK MODAL ── */}
       {showRestockModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="bg-white p-5 md:p-6 rounded-2xl w-full max-w-[320px] shadow-2xl border border-outline-variant/30">
@@ -396,6 +408,7 @@ export default function Inventory() {
         </div>
       )}
 
+      {/* ── INGREDIENTS MODAL ── */}
       {showIngModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
           <div className="bg-white p-5 md:p-6 rounded-2xl w-full max-w-[320px] shadow-2xl border border-outline-variant/30">
@@ -415,18 +428,16 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* MODAL MENU FORM (HPP & KATEGORI FLEKSIBEL) */}
+      {/* ── MENU MODAL ── */}
       {showMenuModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="bg-white p-5 md:p-6 rounded-2xl w-full max-w-[380px] max-h-[90vh] overflow-y-auto shadow-2xl border border-outline-variant/30">
             <h3 className="font-bold text-xs md:text-sm text-on-surface mb-3 md:mb-4">{isEditing ? "Edit Menu" : "Tambah Menu Baru"}</h3>
             <form onSubmit={handleMenuSubmit} className="flex flex-col gap-2.5 md:gap-3">
-              
               <div>
                 <label className="text-[9px] md:text-[10px] font-bold text-on-surface-variant uppercase block mb-1">Nama Menu</label>
                 <input required type="text" placeholder="mis. Iced Latte" value={menuFormData.name} onChange={(e) => setMenuFormData({ ...menuFormData, name: e.target.value })} className="w-full p-2 md:p-2.5 border border-outline-variant rounded-xl text-xs md:text-sm focus:border-primary outline-none" />
               </div>
-              
               <div className="flex flex-col sm:flex-row gap-2.5 md:gap-3">
                 <div className="flex-1">
                   <label className="text-[9px] md:text-[10px] font-bold text-on-surface-variant uppercase block mb-1">Modal / HPP (Rp)</label>
@@ -437,22 +448,17 @@ export default function Inventory() {
                   <input required type="number" placeholder="mis. 25000" value={menuFormData.price} onChange={(e) => setMenuFormData({ ...menuFormData, price: e.target.value })} className="w-full p-2 md:p-2.5 border border-emerald-200 rounded-xl text-xs md:text-sm outline-none focus:border-emerald-500 bg-emerald-50" />
                 </div>
               </div>
-
               <div>
                 <label className="text-[9px] md:text-[10px] font-bold text-on-surface-variant uppercase block mb-1">Kategori</label>
                 <input required list="category-options" placeholder="Pilih atau ketik kategori baru..." value={menuFormData.category} onChange={(e) => setMenuFormData({ ...menuFormData, category: e.target.value })} className="w-full p-2 md:p-2.5 border border-outline-variant rounded-xl text-xs md:text-sm focus:border-primary outline-none" />
                 <datalist id="category-options">
-                  {existingCategories.map(cat => (
-                    <option key={cat} value={cat} />
-                  ))}
+                  {existingCategories.map(cat => (<option key={cat} value={cat} />))}
                 </datalist>
               </div>
-
               <div>
                 <label className="text-[9px] md:text-[10px] font-bold text-on-surface-variant uppercase block mb-1">URL Gambar</label>
                 <input type="text" placeholder="https://..." value={menuFormData.image} onChange={(e) => setMenuFormData({ ...menuFormData, image: e.target.value })} className="w-full p-2 md:p-2.5 border border-outline-variant rounded-xl text-xs md:text-sm focus:border-primary outline-none" />
               </div>
-
               <div className="flex gap-2 mt-1 md:mt-2">
                 <button type="button" onClick={() => setShowMenuModal(false)} className="flex-1 py-1.5 md:py-2 text-[11px] md:text-xs font-medium text-on-surface-variant hover:bg-surface-container rounded-xl border border-outline-variant/30 transition-colors">Batal</button>
                 <button type="submit" className="flex-1 py-1.5 md:py-2 bg-primary text-on-primary text-[11px] md:text-xs font-bold rounded-xl shadow-sm hover:opacity-90 transition-opacity">Simpan</button>

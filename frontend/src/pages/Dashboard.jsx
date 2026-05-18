@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { apiFetch } from "../utils/api";
 
 export default function Dashboard() {
   const [data, setData] = useState({
@@ -15,7 +16,9 @@ export default function Dashboard() {
   const fetchAiInsights = () => {
     setIsAiLoading(true);
     setAiInsight(null);
-    fetch("http://localhost:8000/api/ai-insights")
+    
+    // Menggunakan apiFetch
+    apiFetch("/ai-insights")
       .then(res => res.json())
       .then(fetchedData => {
         setAiInsight(fetchedData.insight);
@@ -29,7 +32,8 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/analytics")
+    // Menggunakan apiFetch
+    apiFetch("/analytics")
       .then(res => res.json())
       .then(fetchedData => {
         const formattedTrend = fetchedData.revenueTrend.map(item => ({
@@ -54,11 +58,12 @@ export default function Dashboard() {
       });
   }, []);
 
-  if (isLoading) return <div className="p-10 ml-0 md:ml-56 flex justify-center text-on-surface-variant text-sm mt-14 md:mt-0">Memuat data analitik...</div>;
+  // Class margin usang dihapus agar tidak bentrok dengan App.jsx
+  if (isLoading) return <div className="p-10 flex justify-center text-on-surface-variant text-sm w-full h-screen items-center">Memuat data analitik...</div>;
 
   return (
-    // ml-0 untuk HP agar tidak ada ruang kosong di kiri, md:ml-56 untuk PC
-    <div className="p-4 md:p-6 bg-surface-container-lowest min-h-screen font-body text-on-surface ml-0 md:ml-56 flex flex-col gap-4 md:gap-6 mt-14 md:mt-0 w-full md:w-auto box-border overflow-x-hidden">
+    // Class margin (ml-0 md:ml-56 mt-14 md:mt-0) dihapus karena sudah diatur secara global di Layout App.jsx
+    <div className="p-4 md:p-6 bg-surface-container-lowest min-h-screen font-body text-on-surface flex flex-col gap-4 md:gap-6 w-full box-border overflow-x-hidden">
 
       {/* Header */}
       <div className="max-w-6xl mx-auto w-full flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
@@ -84,8 +89,7 @@ export default function Dashboard() {
             </div>
             <div className="min-w-0 flex-1"> {/* min-w-0 penting agar teks bisa di-truncate */}
               <p className="text-[10px] md:text-xs text-on-surface-variant font-bold whitespace-nowrap">{kpi.title}</p>
-              {/* Tambahkan truncate agar jika angka mencapai jutaan/miliaran tidak merusak layout */}
-              <h3 className="text-base md:text-xl font-bold truncate">{kpi.value}</h3>
+              <h3 className="text-sm md:text-lg font-bold tracking-tight">{kpi.value}</h3>
             </div>
           </div>
         ))}
