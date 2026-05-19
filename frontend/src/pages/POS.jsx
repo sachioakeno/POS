@@ -13,7 +13,7 @@ export default function POS() {
   const [storeSettings, setStoreSettings] = useState({ store_name: "Toko", tax_percentage: 0 });
   const [menuItems, setMenuItems] = useState([]);
   const storeName = localStorage.getItem("storeName") || "Toko";
-  
+
   // Mobile: toggle between catalog and cart views
   const [mobileView, setMobileView] = useState("catalog");
 
@@ -66,7 +66,7 @@ export default function POS() {
   const handleCheckout = async () => {
     if (cart.length === 0) return alert("Keranjang masih kosong!");
     setIsLoading(true);
-    
+
     try {
       const payload = {
         total_price: total,
@@ -81,7 +81,7 @@ export default function POS() {
       });
 
       if (!response.ok) throw new Error("Terjadi kesalahan server.");
-      
+
       setLastTransactionTotal(total);
       setShowSuccessModal(true);
       setCart([]);
@@ -139,7 +139,7 @@ export default function POS() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col lg:flex-row lg:gap-5 lg:p-5 lg:overflow-hidden lg:h-[calc(100vh-3.5rem)]">
-        
+
         {/* Catalog Section */}
         <section className={`${mobileView === "cart" ? "hidden" : "flex"} lg:flex flex-col flex-grow min-w-0 p-4 lg:p-0 lg:overflow-hidden`}>
           {/* Category filter row */}
@@ -203,8 +203,7 @@ export default function POS() {
         </section>
 
         {/* Cart Section */}
-        <section className={`${mobileView === "catalog" ? "hidden" : "flex"} flex-col w-full lg:w-[320px] lg:flex-shrink-0 bg-surface-container-lowest border-t lg:border border-outline-variant/30 lg:rounded-2xl lg:shadow-sm lg:overflow-hidden`}>
-          {/* Cart header */}
+        <section className={`${mobileView === "catalog" ? "hidden" : "flex"} lg:flex flex-col w-full lg:w-[320px] lg:flex-shrink-0 bg-surface-container-lowest border-t lg:border border-outline-variant/30 lg:rounded-2xl lg:shadow-sm lg:overflow-hidden`}>
           <div className="p-4 border-b border-outline-variant/20 bg-surface-bright flex justify-between items-center flex-shrink-0">
             <h2 className="font-headline text-base font-bold text-on-surface">Current Order</h2>
             <button
@@ -268,7 +267,7 @@ export default function POS() {
               <span className="text-sm font-bold text-on-surface">Total</span>
               <span className="font-headline text-lg font-bold text-primary">Rp {total.toLocaleString("id-ID")}</span>
             </div>
-            
+
             <div className="grid grid-cols-3 gap-2 mb-4">
               {["Cash", "QRIS", "Card"].map(method => (
                 <button

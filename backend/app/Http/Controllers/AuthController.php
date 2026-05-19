@@ -26,6 +26,10 @@ class AuthController extends Controller
             'role' => 'admin',
         ]);
 
+        $user->update([
+            'shop_id' => $user->id
+        ]);
+
         // Langsung buatkan token agar user otomatis login setelah mendaftar
         $token = $user->createToken('auth_token')->plainTextToken;
 
